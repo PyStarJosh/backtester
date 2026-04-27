@@ -32,6 +32,8 @@ class Processor:
         )
         self.conn.commit()
 
+    # TABLE POPULATING METHODS
+    
     def populate_time_series_data_table(self, market_type, time_series_data_dict, symbol):
         for value_dict in time_series_data_dict['values']:
             self.cur.execute(
@@ -64,50 +66,82 @@ class Processor:
              symbol.upper(),
              last_date))
         self.conn.commit()
+        
+    # DATA GETTER METHODS
     
     def get_time_series_data(self, market_type, symbol, start_date=None, end_date=None):
         if start_date and end_date:
             self.cur.execute(
-                'SELECT * FROM time_series_data WHERE market_type = ? and symbol = ? AND datetime BETWEEN ? AND ?',
-                (market_type, symbol, start_date, end_date)
+                'SELECT * FROM time_series_data WHERE market_type = ? AND symbol = ? AND datetime BETWEEN ? AND ?',
+                (market_type.upper(), symbol.upper(), start_date, end_date)
             )
         elif start_date:
             self.cur.execute(
                 'SELECT * FROM time_series_data WHERE market_type = ? AND symbol = ? AND datetime >= ?',
-                (market_type, symbol, start_date)
+                (market_type.upper(), symbol.upper(), start_date)
             )
         else:
             self.cur.execute(
                 'SELECT * FROM time_series_data WHERE market_type = ? AND symbol = ?',
-                (market_type, symbol)
+                (market_type.upper(), symbol.upper())
             )
             
-        return self.cur.fetchall()
+        unformatted_table_data = self.cur.fetchall()
+        return self._format_time_series_data(unformatted_table_data)
     
     def get_commodity_data(self, commodity_type, interval, start_date=None, end_date=None):
         if start_date and end_date:
             self.cur.execute(
-                'SELECT * FROM commodity_prices WHERE commodity_type = ? and interval = ? AND date BETWEEN ? AND ?',
-                (commodity_type, interval, start_date, end_date)
+                'SELECT * FROM commodity_prices WHERE commodity_type = ? AND interval = ? AND date BETWEEN ? AND ?',
+                (commodity_type.upper(), interval, start_date, end_date)
             )
         elif start_date:
             self.cur.execute(
                 'SELECT * FROM commodity_prices WHERE commodity_type = ? AND interval = ? AND date >= ?',
-                (commodity_type, interval, start_date)
+                (commodity_type.upper(), interval.lower(), start_date)
             )
         else:
             self.cur.execute(
                 'SELECT * FROM commodity_prices WHERE commodity_type = ? AND interval = ?',
-                (commodity_type, interval)
+                (commodity_type.upper(), interval.lower())
             )
             
-        return self.cur.fetchall()
-        
+        unformatted_table_data = self.cur.fetchall()
+        return self._format_commodity_data(unformatted_table_data)
+  
     def get_last_updated(self, market_type, symbol):
         self.cur.execute(
             'SELECT last_date FROM last_updated WHERE market_type = ? AND symbol = ?',
-            (market_type, symbol)
+            (market_type.upper(), symbol.upper())
         )
-        result = self.cur.fetchone() # fetchone returns a tuple
         
+        result = self.cur.fetchone() # fetchone returns a tuple
         return result[0] if result else None # returns last date from tuple or None if it does not exist yet
+    
+    # HELPER METHODS
+        
+    def _format_time_series_data(self, unformatted_table_rows):
+        return [
+            {
+                'market_type': row[0],
+                'symbol': row[1],
+                'datetime':row[2],
+                'open': row[3],
+                'high': row[4],
+                'low': row[5],
+                'close': row[6],
+                'volume': row[7] 
+            }
+            for row in unformatted_table_rows
+        ]
+    
+    def _format_commodity_data(self, unformatted_table_rows):
+        return [
+            {
+                'interval': row[0],
+                'commodity': row[1],
+                'date': row[2],
+                'price': row[3],                
+            }
+            for row in unformatted_table_rows
+        ]

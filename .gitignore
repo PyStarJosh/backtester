@@ -213,3 +213,6 @@ __marimo__/
 test_12d_stock_data.json
 test_12d_fx_data.json
 test_12d_crypto_data.json
+
+# SQLite3 Database
+financial_data.db
