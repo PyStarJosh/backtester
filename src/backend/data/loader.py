@@ -61,6 +61,7 @@ class Loader:
         self.__ALPHAVANTAGE_API_KEY = Constants.get_alphavantage_api_key()
         self.__TWELVEDATA_API_KEY = Constants.get_twelvedata_api_key()
         
+    # Provides dict of all Twelve Data supported symbols
     def get_supported_symbols(self, asset_type):
         if asset_type.lower() not in self.TWELVEDATA_ASSET_TYPES:
             raise ValueError(
@@ -71,13 +72,19 @@ class Loader:
         return self._call_api(url)
     
     # Returns a python onject of stock, forex, silver, gold, or crypto data
-    def get_time_series_data(self, symbol, interval):
+    def get_time_series_data(self, symbol, interval, start_date=None, end_date=None):
         if interval.lower() not in self.TWELVEDATA_INTERVALS:
             raise ValueError(
                 f'Unsupported Interval: {interval.lower()} is not supported for {symbol.upper()}'
             )
-        
-        url = f"""{self.TWELVEDATA_BASE_URL}time_series?symbol={symbol.upper()}&interval={interval.lower()}&outputsize=5000&adjust=all&apikey={self.__TWELVEDATA_API_KEY}"""
+            
+        if not (start_date or end_date):
+            url = f"""{self.TWELVEDATA_BASE_URL}time_series?symbol={symbol.upper()}&interval={interval.lower()}&outputsize=5000&adjust=all&apikey={self.__TWELVEDATA_API_KEY}"""
+        elif start_date and not end_date:
+            url = f"""{self.TWELVEDATA_BASE_URL}time_series?symbol={symbol.upper()}&interval={interval.lower()}&outputsize=5000&adjust=all&start_date={start_date}&apikey={self.__TWELVEDATA_API_KEY}"""
+        else:
+            url = f"""{self.TWELVEDATA_BASE_URL}time_series?symbol={symbol.upper()}&interval={interval.lower()}&outputsize=5000&adjust=all&start_date={start_date}&end_date={end_date}&apikey={self.__TWELVEDATA_API_KEY}"""
+
         return self._call_api(url)
 
     # Returns a python object of commodities data (excluding silver and gold)
@@ -98,10 +105,12 @@ class Loader:
             r = requests.get(url, timeout=5)  # Makes HTTP request to APi with a timeout of 5 seconds
             r.raise_for_status()
             data_json = r.json()
+            if not data_json:
+                raise ValueError('API returned empty response')
             
             for key in self.API_ERROR_RESPONSES:
                 if key in data_json:
-                    raise ValueError(data_json[key])  # Passes Alpha Vantage message to ValueError except block
+                    raise ValueError(data_json[key]) # Passes Alpha Vantage message to ValueError except block
             
             return data_json
         
